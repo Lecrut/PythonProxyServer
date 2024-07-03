@@ -1,21 +1,49 @@
 import socket
 import threading
+import json
+import datetime
+import time
 
 is_client_connected = False
+client_socket = None
+subscribed_topics = {}
+created_topics = set()
+threads_lock = threading.Lock()
+client_name = ""
 
 
 def start(server_ip, server_port, client_id):
-    print(server_ip, server_port, client_id)
     global is_client_connected
+    global client_socket
+    global client_name
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
         client_socket.connect((server_ip, server_port))
+
         is_client_connected = True
+        client_name = client_id
+
         print(f'Połączono z serwerem {server_ip}:{server_port}')
+        client_thread = threading.Thread(target=listen_server, args=(client_socket,))
+        client_thread.start()
     except socket.error as e:
         print(f'Błąd połączenia z serwerem: {e}')
+        is_client_connected = False
+
+
+def listen_server(socket_client):
+    global is_client_connected
+
+    try:
+        while is_client_connected:
+            message = socket_client.recv(1024).decode()
+    except socket.error as e:
+        print(f'Error receiving message from server: {e}')
+        is_client_connected = False
+    finally:
+        socket_client.close()
         is_client_connected = False
 
 
@@ -24,38 +52,183 @@ def is_connected():
 
 
 def get_status():
-    return "test"
+    status = {
+        "produced_topics": list(created_topics),
+        "subscribed_topics": list(subscribed_topics.keys())
+    }
+    return json.dumps(status, indent=4)
 
 
 def get_server_status(callback):
-    print(callback)
+    status_message = {
+        "type": "status",
+        "id": client_name,
+        "topic": "logs",
+        "mode": "producer",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "payload": {}
+    }
+    send_message(status_message)
 
 
 def create_producer(topic_name):
-    print(topic_name)
+    message = {
+        "type": "register",
+        "id": client_name,
+        "topic": topic_name,
+        "mode": "producer",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "payload": {}
+    }
+    send_message(message=message)
+    created_topics.add(topic_name)
 
 
 def produce(topic_name, payload):
-    print(topic_name, payload)
+    if topic_name in created_topics:
+        message = {
+            "type": "message",
+            "id": client_name,
+            "topic": topic_name,
+            "mode": "producer",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "payload": payload
+        }
+        send_message(message=message)
+    else:
+        print(f'Error: Not producing topic {topic_name}')
 
 
 def withdraw_producer(topic_name):
-    print(topic_name)
+    if topic_name in created_topics:
+        message = {
+            "type": "withdraw",
+            "id": client_name,
+            "topic": topic_name,
+            "mode": "producer",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "payload": {}
+        }
+        send_message(message=message)
+        created_topics.remove(topic_name)
+    else:
+        print(f'Error: Not producing topic {topic_name}')
 
 
 def create_subscriber(topic_name, callback):
-    print(topic_name, callback)
+    message = {
+        "type": "register",
+        "id": client_name,
+        "topic": topic_name,
+        "mode": "subscriber",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "payload": {}
+    }
+    send_message(message=message)
+    created_topics[topic_name] = callback
 
 
 def withdraw_subscriber(topic_name):
-    print(topic_name)
+    if topic_name in created_topics:
+        message = {
+            "type": "withdraw",
+            "id": client_name,
+            "topic": topic_name,
+            "mode": "subscriber",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "payload": {}
+        }
+        send_message(message=message)
+        del created_topics[topic_name]
+    else:
+        print(f'Error: Not subscribed to topic {topic_name}')
 
 
 def stop():
-    print('stop')
+    global client_socket
+    if client_socket:
+        client_socket.close()
+
+    global created_topics
+    created_topics.clear()
+
+    global subscribed_topics
+    subscribed_topics.clear()
+
+    global is_client_connected
+    is_client_connected = False
+
+
+def message_callback(payload):
+    print(f'Callback Received message: {json.dumps(payload, indent=4)}')
+
+
+def status_callback(payload):
+    print(f'Callback Server status: {json.dumps(payload, indent=4)}')
+
+
+def send_message(message):
+    global is_client_connected
+
+    with threads_lock:
+        try:
+            client_socket.sendall(json.dumps(message).encode())
+        except socket.error as e:
+            print(f'Error sending message: {e}')
+            is_client_connected = False
 
 
 if __name__ == '__main__':
     print("Client")
-    client_id = input("Enter client ID: ")
-    start("127.0.0.1", 12345, client_id)
+
+    while True:
+        time.sleep(1)
+        command = input(
+            "Enter command ("
+            "start, stop, status, create_producer, produce, withdraw_producer, "
+            "create_subscriber, withdraw_subscriber, server_status): ")
+
+        if command == "start":
+            if not is_connected():
+                client_identifier = input("Enter client ID: ")
+                start(server_ip="127.0.0.1", server_port=12346, client_id=client_identifier)
+            else:
+                print("Client already connected.")
+
+        elif command == "stop":
+            stop()
+            break
+
+        elif command == "status":
+            print(get_status())
+
+        elif command == "create_producer":
+            topic_name = input("Enter topic name: ")
+            create_producer(topic_name)
+
+        elif command == "produce":
+            topic_name = input("Enter topic name: ")
+            payload_content = input("Enter payload: ")
+            payload = {"content": payload_content}
+            produce(topic_name, payload)
+
+        elif command == "withdraw_producer":
+            topic_name = input("Enter topic name: ")
+            withdraw_producer(topic_name)
+
+        elif command == "create_subscriber":
+            topic_name = input("Enter topic name: ")
+            create_subscriber(topic_name, message_callback)
+
+        elif command == "withdraw_subscriber":
+            topic_name = input("Enter topic name: ")
+            withdraw_subscriber(topic_name)
+
+        elif command == "server_status":
+            get_server_status(status_callback)
+
+        elif command == "check_connection":
+            print(is_connected())
+
+        else:
+            print("Unknown command. Please try again.")
