@@ -87,7 +87,7 @@ def produce(topic_name, payload):
         message = client_message(client_name=client_name, topic_name=topic_name, payload=payload)
         send_message(message=message)
     else:
-        print(f'Error: Not producing topic {topic_name}')
+        print(f'Błąd: brak tematu {topic_name}')
 
 
 def withdraw_producer(topic_name):
@@ -96,7 +96,7 @@ def withdraw_producer(topic_name):
         send_message(message=message)
         created_topics.remove(topic_name)
     else:
-        print(f'Error: Not producing topic {topic_name}')
+        print(f'Błąd: brak tematu {topic_name}')
 
 
 def create_subscriber(topic_name, callback):
@@ -111,7 +111,7 @@ def withdraw_subscriber(topic_name):
         send_message(message=message)
         del subscribed_topics[topic_name]
     else:
-        print(f'Error: Not subscribed to topic {topic_name}')
+        print(f'Błąd: brak subskrypcji tematu {topic_name}')
 
 
 def stop():
@@ -130,11 +130,11 @@ def stop():
 
 
 def message_callback(payload):
-    print(f'Callback Received message: {json.dumps(payload, indent=4)}')
+    print(f'Callback otrzymana wiadomość: {json.dumps(payload, indent=4)}')
 
 
 def status_callback(payload):
-    print(f'Callback Server status: {json.dumps(payload, indent=4)}')
+    print(f'Callback server status: {json.dumps(payload, indent=4)}')
 
 
 def send_message(message):
@@ -144,7 +144,7 @@ def send_message(message):
         try:
             client_socket.sendall(json.dumps(message).encode())
         except socket.error as e:
-            print(f'Error sending message: {e}')
+            print(f'Błąd wysyłania wiadomości {e}')
             is_client_connected = False
 
 
@@ -155,8 +155,17 @@ if __name__ == '__main__':
         time.sleep(1)
         command = input(
             "Wprowadź komendę "
-            "(start, stop, status, create_producer, produce, withdraw_producer, "
-            "create_subscriber, withdraw_subscriber, server_status): ")
+            "(start, "
+            "stop, "
+            "status, "
+            "utworz temat, "
+            "pisz, "
+            "usun nadawce, "
+            "zostaw suba, "
+            "usun suba, "
+            "sprawdz polaczenie,"
+            "serwer status): "
+        )
 
         switch = {
             "start": lambda: start(
@@ -166,16 +175,16 @@ if __name__ == '__main__':
             if not is_connected() else print("Klient jest już połączony."),
             "stop": lambda: stop(),
             "status": lambda: print(get_status()),
-            "create_producer": lambda: create_producer(topic_name=input("Wprowadź nazwę tematu: ")),
-            "produce": lambda: produce(input("Wprowadź nazwę tematu: "), {"content": input("Wprowadź dane: ")}),
-            "withdraw_producer": lambda: withdraw_producer(topic_name=input("Wprowadź nazwę tematu: ")),
-            "create_subscriber": lambda: create_subscriber(
+            "utworz temat": lambda: create_producer(topic_name=input("Wprowadź nazwę tematu: ")),
+            "pisz": lambda: produce(input("Wprowadź nazwę tematu: "), {"content": input("Wprowadź dane: ")}),
+            "usun nadawce": lambda: withdraw_producer(topic_name=input("Wprowadź nazwę tematu: ")),
+            "zostaw suba": lambda: create_subscriber(
                 topic_name=input("Wprowadź nazwę tematu: "),
                 callback=message_callback
             ),
-            "withdraw_subscriber": lambda: withdraw_subscriber(topic_name=input("Wprowadź nazwę tematu: ")),
-            "server_status": lambda: get_server_status(callback=status_callback),
-            "check_connection": lambda: print("status połącznia: ", is_connected())
+            "usun suba": lambda: withdraw_subscriber(topic_name=input("Wprowadź nazwę tematu: ")),
+            "serwer status": lambda: get_server_status(callback=status_callback),
+            "sprawdz polaczenie": lambda: print("status połącznia: ", is_connected())
         }
 
         switch.get(command, lambda: print("Nieznana komenda. Spróbuj ponownie."))()

@@ -275,19 +275,23 @@ def validate_message(message):
 def user_interface():
     while True:
         time.sleep(3)
-        command = input("Wpisz komendę (np. 'show topics', 'show clients'): ")
-        if command.lower() == 'show topics':
-            show_registered_topics()
-        if command.lower() == 'show clients':
-            show_connected_clients()
+        command = input("Wpisz komendę (np. 'pokaz tematy', 'pokaz klientow'): ")
+        switch = {
+            "pokaz tematy": lambda: show_registered_topics(),
+            "pokaz klientow": lambda: show_connected_clients(),
+        }
+        switch.get(command, lambda: print("Nieznana komenda. Spróbuj ponownie."))()
 
 
 def show_registered_topics():
-    print("Zarejestrowane tematy:")
-    for topic, data in topic_list_LT.items():
-        producers = list(data['producers'].keys())
-        subscribers = len(data['subscribers']) if data['subscribers'] else 0
-        print(f"Temat: {topic}, Producent(ów): {producers}, Subskrybentów: {subscribers}")
+    if not topic_list_LT:
+        print("Brak zarejestrowanych tematów.")
+    else:
+        print("Zarejestrowane tematy:")
+        for topic, data in topic_list_LT.items():
+            producers = list(data['producers'].keys())
+            subscribers = len(data['subscribers']) if data['subscribers'] else 0
+            print(f"Temat: {topic}, Producent(ów): {producers}, Subskrybentów: {subscribers}")
 
 
 def show_connected_clients():
