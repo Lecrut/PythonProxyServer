@@ -2,7 +2,7 @@ import json
 import socket
 import threading
 import time
-from messages import *
+from helpers.messages import *
 
 
 topic_list_LT = {}
@@ -295,15 +295,18 @@ def show_registered_topics():
 
 
 def show_connected_clients():
-    print("Klienci:")
-    [print(f"{data}: {client}") for client, data in connected_clients.items()]
+    if not connected_clients:
+        print("Brak klientów.")
+    else:
+        print("Klienci:")
+        [print(f"{data}: {client}") for client, data in connected_clients.items()]
 
 
 # startujemy wszystkie watki
 def start_server(host, port):
     print("Server")
 
-    data = load_json_file(file_name='config.json')
+    data = load_json_file(file_name='../config.json')
 
     global topic_list_LT
     topic_list_LT = {}

@@ -3,7 +3,7 @@ import threading
 import json
 import time
 
-from messages import *
+from helpers.messages import *
 
 is_client_connected = False
 client_socket = None
