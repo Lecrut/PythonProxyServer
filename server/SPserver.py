@@ -151,10 +151,10 @@ def handle_message(message, client_socket):
         message_type = message_data.get('type', None)
         if message_type:
             switch_cases = {
-                'register': handle_register,
-                'withdraw': handle_withdraw,
-                'message': handle_message_type,
-                'status': handle_status,
+                'register': execute_register,
+                'withdraw': execute_withdraw,
+                'message': execute_message_request,
+                'status': execute_status,
             }
             handler = switch_cases.get(message_type)
             if handler:
@@ -176,7 +176,7 @@ def process_message_data(message_data):
     return topic, client_id, mode
 
 
-def handle_register(message_data, client_socket):
+def execute_register(message_data, client_socket):
     topic, client_id, mode = process_message_data(message_data=message_data)
 
     if mode == 'producer':
@@ -200,7 +200,7 @@ def handle_register(message_data, client_socket):
         print(f'Nieobsługiwany tryb: {mode}')
 
 
-def handle_withdraw(message_data, client_socket):
+def execute_withdraw(message_data, client_socket):
     topic, client_id, mode = process_message_data(message_data=message_data)
 
     if topic in topic_list_LT:
@@ -224,7 +224,7 @@ def handle_withdraw(message_data, client_socket):
         print(f'Temat {topic} nie istnieje')
 
 
-def handle_message_type(message_data, client_socket):
+def execute_message_request(message_data, client_socket):
     topic, _, _ = process_message_data(message_data=message_data)
     if topic in topic_list_LT:
         if topic_list_LT[topic]['subscribers']:
@@ -247,7 +247,7 @@ def send_response(client_socket, message):
     queue_to_send_topics_KKW.append(response)
 
 
-def handle_status(message_data, client_socket):
+def execute_status(message_data, client_socket):
     print(message_data)
     status_message = {
         "registered_topics": {},
@@ -259,7 +259,7 @@ def handle_status(message_data, client_socket):
         }
     queue_to_send_topics_KKW.append(server_status(client_socket=client_socket, client_id=connected_clients[client_socket], status_message=status_message))
     print(queue_to_send_topics_KKW)
-    print(f'Dodano status do KKW dla klienta {connected_clients[client_socket]}')
+    print(f'Dodano status dla klienta {connected_clients[client_socket]}')
 
 
 def validate_message(message):
